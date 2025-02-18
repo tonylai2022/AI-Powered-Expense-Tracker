@@ -40,7 +40,7 @@ Before you begin, ensure you have met the following requirements:
 
 ## Setup Instructions
 
-### 1. Clone the Repository
+## 1. Clone the Repository
 ```bash
 git clone https://github.com/tonylai2022/AI-Powered-Expense-Tracker.git
 cd AI-Powered-Expense-Tracker
