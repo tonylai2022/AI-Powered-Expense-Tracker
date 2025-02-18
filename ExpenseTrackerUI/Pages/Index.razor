@@ -1,0 +1,125 @@
+@page "/"
+@inject HttpClient Http
+
+<h3>Expense Tracker</h3>
+
+@if (expenses == null)
+{
+    <p>Loading...</p>
+}
+else if (expenses.Count == 0)
+{
+    <p>No expenses found. Add a new expense below.</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Description</th>
+                <th>Amount</th>
+                <th>Category</th>
+                <th>Date Added</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var expense in expenses)
+            {
+                <tr>
+                    <td>@expense.Description</td>
+                    <td>@expense.Amount.ToString("C")</td>
+                    <td>@expense.Category</td>
+                    <td>@expense.DateAdded.ToString("yyyy-MM-dd")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<h4>Add Expense</h4>
+<div>
+    <div class="mb-3">
+        <label>Description:</label>
+        <input type="text" @bind="newExpense.Description" class="form-control" required />
+    </div>
+
+    <div class="mb-3">
+        <label>Amount:</label>
+        <input type="number" @bind="newExpense.Amount" class="form-control" required />
+    </div>
+
+    <div class="mb-3">
+        <label>Category (Optional - AI will assign if left empty):</label>
+        <input type="text" @bind="newExpense.Category" class="form-control" />
+    </div>
+
+    <button @onclick="AddExpense" class="btn btn-primary">Add Expense</button>
+
+    @if (!string.IsNullOrEmpty(message))
+    {
+        <p class="mt-2 text-danger">@message</p>
+    }
+</div>
+
+@code {
+    private List<Expense>? expenses;
+    private Expense newExpense = new Expense();
+    private string? message;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            expenses = await Http.GetFromJsonAsync<List<Expense>>("https://localhost:7127/api/expenses");
+        }
+        catch (Exception ex)
+        {
+            message = "Failed to load expenses. Check if the API is running.";
+            Console.WriteLine($"API Error: {ex.Message}");
+        }
+    }
+
+    private async Task AddExpense()
+    {
+        if (string.IsNullOrWhiteSpace(newExpense.Description) || newExpense.Amount <= 0)
+        {
+            message = "Please fill in the required fields.";
+            return;
+        }
+
+        try
+        {
+            // ✅ If category is empty, remove it from the request to let the API assign it
+            if (string.IsNullOrWhiteSpace(newExpense.Category))
+            {
+                newExpense.Category = null;
+            }
+
+            var response = await Http.PostAsJsonAsync("https://localhost:7127/api/expenses", newExpense);
+
+            if (response.IsSuccessStatusCode)
+            {
+                expenses = await Http.GetFromJsonAsync<List<Expense>>("https://localhost:7127/api/expenses");
+                newExpense = new Expense(); // ✅ Properly reset form after successful submission
+                message = "";
+            }
+            else
+            {
+                message = $"Error: {response.StatusCode} - {await response.Content.ReadAsStringAsync()}";
+            }
+        }
+        catch (Exception ex)
+        {
+            message = "Failed to connect to the API. Ensure it's running.";
+            Console.WriteLine($"API Error: {ex.Message}");
+        }
+    }
+
+    private class Expense
+    {
+        public string Description { get; set; } = "";
+        public decimal Amount { get; set; }
+        public string? Category { get; set; } // ✅ Made nullable to allow AI to handle it
+        public DateTime DateAdded { get; set; } = DateTime.UtcNow;
+    }
+}
